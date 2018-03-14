@@ -1,8 +1,6 @@
 package io.thoughtworksarts.riot.video;
 
-import io.thoughtworksarts.riot.audio.RiotAudioPlayer;
 import io.thoughtworksarts.riot.branching.BranchingLogic;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.media.Media;
@@ -12,26 +10,35 @@ import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
+import java.net.MalformedURLException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
 @Slf4j
 public class MediaControl extends BorderPane {
 
-    public static final String DRIVER_NAME = "ASIO4ALL v2";
-
     private BranchingLogic branchingLogic;
-    private RiotAudioPlayer audioPlayer;
     private MediaPlayer filmPlayer;
+    private MediaPlayer audioPlayer;
+    private ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    public MediaControl(BranchingLogic branchingLogic, RiotAudioPlayer audioPlayer, Duration startTime) throws Exception {
+    public MediaControl(BranchingLogic branchingLogic, Duration startTime) throws Exception {
         this.branchingLogic = branchingLogic;
         //Video relate
-        String filmPath = this.branchingLogic.getFilmPath();
-        String pathToFilm = new File(String.valueOf(filmPath)).toURI().toURL().toString();
-        setUpFilmPlayer(pathToFilm, startTime);
+        setUpFilmPlayer(startTime);
         setUpPane();
         //Audio related
-        this.audioPlayer = audioPlayer;
-        this.audioPlayer.initialise(DRIVER_NAME, this.branchingLogic.getAudioPath());
+        setUpAudioPlayer();
+    }
+
+    private void setUpAudioPlayer() throws MalformedURLException {
+        String pathToAudio = getPathToMedia(branchingLogic.getAudioPath());
+        Media audioMedia = new Media(pathToAudio);
+        audioPlayer = new MediaPlayer(audioMedia);
+        audioPlayer.setAutoPlay(false);
     }
 
     private void setUpPane() {
@@ -43,30 +50,42 @@ public class MediaControl extends BorderPane {
         setCenter(pane);
     }
 
-    private void setUpFilmPlayer(String pathToFilm, Duration startTime) {
+    private void setUpFilmPlayer(Duration startTime) throws MalformedURLException {
+        String pathToFilm = getPathToMedia(branchingLogic.getFilmPath());
         Media media = new Media(pathToFilm);
         branchingLogic.recordMarkers(media.getMarkers());
         filmPlayer = new MediaPlayer(media);
-
         filmPlayer.setAutoPlay(false);
+
         filmPlayer.setOnMarker(arg -> {
             Duration duration = branchingLogic.branchOnMediaEvent(arg);
             seek(duration);
         });
-
         filmPlayer.setOnReady(() -> {
                     filmPlayer.seek(startTime);
-                    audioPlayer.seek(startTime.toSeconds());
+                    audioPlayer.seek(startTime);
                 }
         );
+
+        filmPlayer.setOnPlaying(()->{
+            executor.submit(()->{
+                while(filmPlayer.getStatus() == MediaPlayer.Status.PLAYING) {
+                    log.info("FilmPlayer time in seconds : "+filmPlayer.getCurrentTime().toSeconds());
+                    log.info("AudioPlayer time in seconds : "+audioPlayer.getCurrentTime().toSeconds());
+                    sleepUninterruptibly(3, TimeUnit.SECONDS);
+                }
+            });
+        });
+    }
+
+    private String getPathToMedia(String filmPath) throws MalformedURLException {
+        return new File(String.valueOf(filmPath)).toURI().toURL().toString();
     }
 
     private void handleClickDuringIntro() {
         Duration duration = branchingLogic.getProperIntroDuration(filmPlayer.getCurrentTime());
         if (duration != null) {
             seek(duration);
-        } else {
-            log.info("no clicking action outside of intro section");
         }
     }
 
@@ -78,19 +97,17 @@ public class MediaControl extends BorderPane {
     public void play() {
         log.info("Play");
         filmPlayer.play();
-        audioPlayer.resume();
+        audioPlayer.play();
     }
 
     public void seek(Duration duration) {
         filmPlayer.seek(duration);
-        audioPlayer.seek(duration.toSeconds());
-        audioPlayer.resume();  // this needs to be here because the audioPlayer stops after seeking sometimes
-
+        audioPlayer.seek(duration);
     }
 
     public void shutdown() {
         log.info("Shutting Down");
         filmPlayer.stop();
-        audioPlayer.shutdown();
+        audioPlayer.stop();
     }
 }
