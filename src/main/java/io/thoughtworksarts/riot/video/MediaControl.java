@@ -22,12 +22,12 @@ public class MediaControl extends BorderPane {
     private RiotAudioPlayer audioPlayer;
     private MediaPlayer filmPlayer;
 
-    public MediaControl(BranchingLogic branchingLogic, RiotAudioPlayer audioPlayer, Duration startTime) throws Exception {
+    public MediaControl(BranchingLogic branchingLogic, RiotAudioPlayer audioPlayer, Duration startTime, Boolean testing) throws Exception {
         this.branchingLogic = branchingLogic;
         //Video relate
         String filmPath = this.branchingLogic.getFilmPath();
         String pathToFilm = new File(String.valueOf(filmPath)).toURI().toURL().toString();
-        setUpFilmPlayer(pathToFilm, startTime);
+        setUpFilmPlayer(pathToFilm, startTime, testing);
         setUpPane();
         //Audio related
         this.audioPlayer = audioPlayer;
@@ -43,14 +43,14 @@ public class MediaControl extends BorderPane {
         setCenter(pane);
     }
 
-    private void setUpFilmPlayer(String pathToFilm, Duration startTime) {
+    private void setUpFilmPlayer(String pathToFilm, Duration startTime, Boolean testing) {
         Media media = new Media(pathToFilm);
         branchingLogic.recordMarkers(media.getMarkers());
         filmPlayer = new MediaPlayer(media);
 
         filmPlayer.setAutoPlay(false);
         filmPlayer.setOnMarker(arg -> {
-            Duration duration = branchingLogic.branchOnMediaEvent(arg);
+            Duration duration = branchingLogic.branchOnMediaEvent(arg, testing);
             seek(duration);
         });
 

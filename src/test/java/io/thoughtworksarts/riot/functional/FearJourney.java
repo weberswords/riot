@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -54,43 +55,13 @@ public class FearJourney extends Application {
         //Play the movie
         RiotAudioPlayer audioPlayer = OSChecker.isWindows() ? new AudioPlayer() : new JavaSoundAudioPlayer();
         BranchingLogic branchingLogic = new BranchingLogic(facialEmotionRecognitionAPI, jsonTranslator);
-        mediaControl = new MediaControl(branchingLogic, audioPlayer, jsonTranslator.convertToDuration("04:00.000"));
+        mediaControl = new MediaControl(branchingLogic, audioPlayer, jsonTranslator.convertToDuration("03:47.000"), true);
 
-//        mediaControlSpy = Mockito.spy(mediaControl);
+        mediaControlSpy = Mockito.spy(mediaControl);
         MoviePlayer moviePlayer = new MoviePlayer(primaryStage, mediaControl);
         moviePlayer.initialise();
         mediaControl.play();
-
-        //Skip to end of level1
-        String endLevel1 = levels[0].getEnd();
-        Duration nearEndOfLevel = subtractTimeFromDuration("00:03.000", endLevel1);
-        mediaControl.seek(nearEndOfLevel);
-
-        //Verify that end of level1 goes to fear scene
-
-        //Skip the middle of fear of scene
-        String startFearScene = levels[0].getBranch().get("fear").getStart();
-        Duration nearStartOfFearScene = addTimeToDuration("00:03.00", startFearScene);
-
-
-        String endFearScene = levels[0].getBranch().get("fear").getEnd();
-        Duration nearEndOfFearScene = subtractTimeFromDuration("00:03.000", endFearScene);
-        mediaControl.seek(nearEndOfFearScene);
-
-    }
-
-    //Strings must be in 00:00.000
-    public Duration subtractTimeFromDuration(String seconds, String time){
-        Duration timeInDuration = jsonTranslator.convertToDuration(time);
-        Duration secondsInDuration = jsonTranslator.convertToDuration(seconds);
-        return timeInDuration.subtract(secondsInDuration);
-    }
-
-    //Strings must be in 00:00.000
-    public Duration addTimeToDuration(String seconds, String time){
-        Duration timeInDuration = jsonTranslator.convertToDuration(time);
-        Duration secondsInDuration = jsonTranslator.convertToDuration(seconds);
-        return timeInDuration.add(secondsInDuration);
+//        verifySeek(levels[0].getBranch().get("fear").getStart());
     }
 
 
@@ -101,7 +72,7 @@ public class FearJourney extends Application {
     }
 
     public void verifySeek(String time){
-        verify(mediaControlSpy).seek(jsonTranslator.convertToDuration(time));
-    }
+        verify(mediaControlSpy, timeout(10000)).seek(jsonTranslator.convertToDuration(time));
+}
 
 }

@@ -40,7 +40,7 @@ public class BranchingLogic {
         credits = root.getCredits();
     }
 
-    public Duration branchOnMediaEvent(MediaMarkerEvent arg) {
+    public Duration branchOnMediaEvent(MediaMarkerEvent arg, Boolean testing) {
         String key = arg.getMarker().getKey();
         String[] split = key.split(":");
         String category = split[0];
@@ -76,13 +76,27 @@ public class BranchingLogic {
             }
         }
 
+        if(testing){
+            if(category.equals("nearLevel1Start")){
+                String endLevel1 = levels[0].getEnd();
+                return subtractTimeFromDuration("00:03.000", endLevel1);
+
+            }
+        }
+
         double currentTime = arg.getMarker().getValue().toMillis() + 1;
         return new Duration(currentTime);
     }
 
+
     public void addMarker(Map<String, Duration> markers, String nameForMarker, String index, String time) {
         String markerNameWithColon = nameForMarker + ":" + index;
         markers.put(markerNameWithColon, translator.convertToDuration(time));
+    }
+
+    public void addDurationMarker(Map<String, Duration> markers, String nameForMarker, String index, Duration time) {
+        String markerNameWithColon = nameForMarker + ":" + index;
+        markers.put(markerNameWithColon, time);
     }
 
     public void recordMarkers(Map<String, Duration> markers) {
@@ -96,6 +110,33 @@ public class BranchingLogic {
             branch.forEach((branchKey, emotionBranch) -> addMarker(markers, "emotion:" + level.getLevel(),
                     branchKey, emotionBranch.getEnd()));
         }
+
+        //Testing Markers
+        String startLevel1 = levels[0].getStart();
+        Duration nearStartOfLevel = addTimeToDuration("00:03.000", startLevel1);
+        addDurationMarker(markers, "nearLevel1Start", "1", nearStartOfLevel);
+
+        String startFearScene = levels[0].getBranch().get("fear").getStart();
+        Duration nearStartOfFearScene = addTimeToDuration("00:03.00", startFearScene);
+        addDurationMarker(markers, "nearFearStart", "1", nearStartOfFearScene);
+
+        String startAngerScene = levels[0].getBranch().get("anger").getStart();
+        Duration nearStartOfAngerScene = addTimeToDuration("00:03.00", startAngerScene);
+        addDurationMarker(markers, "nearAngerStart", "1", nearStartOfAngerScene);
+    }
+
+    //Strings must be in 00:00.000
+    public Duration subtractTimeFromDuration(String seconds, String time){
+        Duration timeInDuration = translator.convertToDuration(time);
+        Duration secondsInDuration = translator.convertToDuration(seconds);
+        return timeInDuration.subtract(secondsInDuration);
+    }
+
+    //Strings must be in 00:00.000
+    public Duration addTimeToDuration(String seconds, String time){
+        Duration timeInDuration = translator.convertToDuration(time);
+        Duration secondsInDuration = translator.convertToDuration(seconds);
+        return timeInDuration.add(secondsInDuration);
     }
 
     public Duration getProperIntroDuration(Duration currentTime) {
