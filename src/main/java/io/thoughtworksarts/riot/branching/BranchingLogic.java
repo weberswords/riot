@@ -36,40 +36,41 @@ public class BranchingLogic {
         int index = Integer.parseInt(split[1]);
         Map<String, EmotionBranch> branches = levels[index - 1].getBranch();
 
-        if (category.equals("level")) {
-            log.info("Level Marker: " + key);
-            String value = facialRecognition.getDominantEmotion(branches.keySet()).name();
-            EmotionBranch emotionBranch = branches.get(value.toLowerCase());
-            return translator.convertToDuration(emotionBranch.getStart());
-        } else if (category.equals("emotion")) {
-            log.info("Emotion Marker: " + key);
-            String emotionType = split[2];
-            EmotionBranch emotionBranch = branches.get(emotionType);
-            int outcomeNumber = emotionBranch.getOutcome();
-            if (outcomeNumber > 0) {
-                Level nextLevel = levels[outcomeNumber - 1];
-                return translator.convertToDuration(nextLevel.getStart());
-            } else {
-                log.info("Credits: ");
-                return translator.convertToDuration(credits[0].getStart());
-            }
-        } else if (category.equals("intro")) {
-            log.info("Intro slide: " + key);
-            return translator.convertToDuration("00:00.000");
-        } else if (category.equals("credit")) {
-            if (split[1].equals("2")) {
-                log.info("Shutting down webcam: ");
-                facialRecognition.endImageCapture();
-                log.info("Exiting application: ");
-                Platform.exit();
-            }
+        switch (category) {
+            case "level":
+                log.info("Level Marker: " + key);
+                String value = facialRecognition.getDominantEmotion(branches.keySet()).name();
+                EmotionBranch emotionBranch = branches.get(value.toLowerCase());
+                return translator.convertToDuration(emotionBranch.getStart());
+            case "emotion":
+                log.info("Emotion Marker: " + key);
+                String emotionType = split[2];
+                emotionBranch = branches.get(emotionType);
+                int outcomeNumber = emotionBranch.getOutcome();
+                if (outcomeNumber > 0) {
+                    Level nextLevel = levels[outcomeNumber - 1];
+                    return translator.convertToDuration(nextLevel.getStart());
+                } else {
+                    log.info("Credits: ");
+                    return translator.convertToDuration(credits[0].getStart());
+                }
+            case "intro":
+                log.info("Intro slide: " + key);
+                return translator.convertToDuration("00:00.000");
+            case "credit":
+                if (split[1].equals("2")) {
+                    log.info("Shutting down webcam: ");
+                    facialRecognition.endImageCapture();
+                    log.info("Exiting application: ");
+                    Platform.exit();
+                }
         }
 
         double currentTime = arg.getMarker().getValue().toMillis() + 1;
         return new Duration(currentTime);
     }
 
-    public void addMarker(Map<String, Duration> markers, String nameForMarker, String index, String time) {
+    private void addMarker(Map<String, Duration> markers, String nameForMarker, String index, String time) {
         String markerNameWithColon = nameForMarker + ":" + index;
         markers.put(markerNameWithColon, translator.convertToDuration(time));
     }
